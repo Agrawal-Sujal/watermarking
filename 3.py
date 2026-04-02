@@ -38,7 +38,7 @@ def resize(image_path):
         constant_values=0
     )
 
-    return padded.astype(np.float32)
+    return padded.astype(np.float32),H,W
 
 def apply_dtcwt(img):
     
@@ -305,7 +305,8 @@ def main():
 
     # ========= STEP 1 =========
     print("Step 1")
-    I = resize(args.image)
+    img = args.image
+    I,height, width = resize(img)
 
     # ========= STEP 2 =========
     print("Step 2")
@@ -332,7 +333,7 @@ def main():
     # ========= STEP 6 =========
     print("Step 6")
     
-    W = resize(args.watermark)
+    W,_,_ = resize(args.watermark)
     W = cv2.resize(W, (8, 8))
     W = W.astype(np.float32) / 255.0
 
@@ -344,13 +345,13 @@ def main():
     W_enc, indices = henon_encrypt(W, a, b, x0, y0)
 
     # Save encrypted watermark
-    W_enc_img = (W_enc * 255).astype(np.uint8)
-    cv2.imwrite(args.enc_wm, W_enc_img)
+    # W_enc_img = (W_enc * 255).astype(np.uint8)
+    cv2.imwrite(args.enc_wm, W)
 
     # ========= STEP 8 =========
     print("Step 8")
     
-    U_w, Sw, Vt_w = watermark_svd(W_enc)
+    U_w, Sw, Vt_w = watermark_svd(W)
 
     # ========= STEP 9: OPTIMIZED ALPHA =========
     print("Step 9")
@@ -392,7 +393,11 @@ def main():
         "y0": y0,
         "alpha": float(alpha),
         "watermark_shape": list(W.shape),
-        "indices": indices.tolist()
+        "indices": indices.tolist(),
+        "original_shape": [height, width],
+        "HSw": HSw.tolist(),
+        "Uw": U_w.tolist(),
+        "Vw": Vt_w.tolist()
     }
 
     with open(args.key, "w") as f:
