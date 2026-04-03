@@ -42,10 +42,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'accounts'
+    'accounts',
+    'watermarking',
+    'corsheaders'
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True 
+
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -121,3 +126,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),   # 1 hour
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),      # 1 day
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}

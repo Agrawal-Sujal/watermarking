@@ -4,37 +4,46 @@ import os
 import uuid
 
 
-def _get_filename(filename):
-    ext = filename.split('.')[-1]
-    return f"{uuid.uuid4().hex}.{ext}"
+# def _get_filename(filename):
+#     ext = filename.split('.')[-1]
+#     return f"{uuid.uuid4().hex}.{ext}"
+def get_filename(filename):
+    """
+    Generate unique filename while preserving extension
+    """
+    ext = os.path.splitext(filename)[1]  # includes dot (.png)
+
+    if not ext:
+        ext = ".png"  # fallback (important for your pipeline)
+
+    return f"{uuid.uuid4().hex}{ext}"
+
+def path_original(instance):
+    return f"storage/images/user_{instance.user.id}/process_{instance.id}/original_image.png"
 
 
-def upload_original(instance, filename):
-    return f"images/user_{instance.user.id}/process_{instance.id}/{_get_filename(filename)}"
+def path_watermark(instance):
+    return f"storage/watermark/user_{instance.user.id}/process_{instance.id}/watermark_image.png"
 
 
-def upload_watermark(instance, filename):
-    return f"watermark/user_{instance.user.id}/process_{instance.id}/{_get_filename(filename)}"
+def path_resized(instance):
+    return f"storage/resized/user_{instance.user.id}/process_{instance.id}/resized_image.png"
 
 
-def upload_resized(instance, filename):
-    return f"resized/user_{instance.user.id}/process_{instance.id}/{_get_filename(filename)}"
+def path_wm_raw(instance):
+    return f"storage/watermark_raw/user_{instance.user.id}/process_{instance.id}/watermark_raw.png"
 
 
-def upload_wm_raw(instance, filename):
-    return f"watermark_raw/user_{instance.user.id}/process_{instance.id}/{_get_filename(filename)}"
+def path_wm_encrypted(instance):
+    return f"storage/watermark_encrypted/user_{instance.user.id}/process_{instance.id}/watermark_encrypted.png"
 
 
-def upload_wm_encrypted(instance, filename):
-    return f"watermark_encrypted/user_{instance.user.id}/process_{instance.id}/{_get_filename(filename)}"
+def path_output(instance):
+    return f"storage/output/user_{instance.user.id}/process_{instance.id}/watermarked_image.png"
 
 
-def upload_output(instance, filename):
-    return f"output/user_{instance.user.id}/process_{instance.id}/{_get_filename(filename)}"
-
-
-def upload_key(instance, filename):
-    return f"keys/user_{instance.user.id}/process_{instance.id}/{_get_filename(filename)}"
+def path_key(instance):
+    return f"storage/keys/user_{instance.user.id}/process_{instance.id}/key"
 
 
 
@@ -52,7 +61,7 @@ class ImageProcess(models.Model):
         SVD = "svd", "Applying SVD"
         PSO = "pso", "Optimizing with PSO"
         EMBEDDING = "embedding", "Embedding Watermark"
-
+        THRESHOLDING = "thresholding","Thresholding"
         COMPLETED = "completed", "Completed"
         FAILED = "failed", "Failed"
 
@@ -66,26 +75,6 @@ class ImageProcess(models.Model):
     # 🔹 USER
     # =========================================================
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-    # =========================================================
-    # 🔹 INPUT IMAGES
-    # =========================================================
-    original_image = models.ImageField(upload_to=upload_original)
-    watermark_image = models.ImageField(upload_to = upload_watermark)
-
-    # =========================================================
-    # 🔹 INTERMEDIATE IMAGES
-    # =========================================================
-    resized_image = models.ImageField(upload_to=upload_resized, null=True, blank=True)
-
-    # Watermark stages
-    watermark_raw = models.ImageField(upload_to=upload_wm_raw, null=True, blank=True)   
-    watermark_encrypted = models.ImageField(upload_to=upload_wm_encrypted, null=True, blank=True)  
-
-    # =========================================================
-    # 🔹 OUTPUT
-    # =========================================================
-    watermarked_image = models.ImageField(upload_to=upload_output, null=True, blank=True)
 
     # =========================================================
     # 🔹 ALGORITHM PARAMETERS
@@ -114,19 +103,12 @@ class ImageProcess(models.Model):
     final_threshold = models.FloatField(null = True,blank = True)
     watermark_shape = models.JSONField(null=True, blank=True)
     
-    
-
     # =========================================================
     # 🔹 WATERMARK INFO
     # =========================================================
 
     henon_a = models.FloatField(null=True, blank=True)
     henon_b = models.FloatField(null=True, blank=True)
-
-    # =========================================================
-    # 🔹 KEY STORAGE
-    # =========================================================
-    key_file = models.FileField(upload_to=upload_key, null=True, blank=True)
 
 
     # =========================================================
@@ -143,5 +125,15 @@ class ImageProcess(models.Model):
     
     def __str__(self):
         return f"Process {self.id} - {self.user.username}"
+    
+    def set_status(self,status,progress):
+        self.status = status
+        self.progress = progress
+        self.save()
+        
+    def mark_failed(self,error):
+        self.status = self.Status.FAILED
+        self.error_message = error
+        self.save()
     
     

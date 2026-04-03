@@ -11,7 +11,6 @@ def register(request):
     data = request.data
 
     username = data.get('username')
-    email = data.get('email')
     password = data.get('password')
 
     # Basic validation
@@ -24,7 +23,6 @@ def register(request):
     # Create user manually
     user = User.objects.create(
         username=username,
-        email=email,
         password=make_password(password)  
     )
 

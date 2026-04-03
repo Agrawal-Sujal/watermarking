@@ -1,14 +1,12 @@
 import numpy as np
 from dataclasses import dataclass
 from typing import List, Tuple
-from PIL import Image, ImageDraw
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+from PIL import Image
 from scipy.fft import dctn, idctn
 import dtcwt
 from dtcwt.numpy import Pyramid
 from pyswarms.single.global_best import GlobalBestPSO
-
+import io
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  KEY BUNDLE
@@ -196,6 +194,36 @@ def psnr(original: np.ndarray, modified: np.ndarray) -> float:
     mse = np.mean((original.astype(np.float64) - modified.astype(np.float64)) ** 2)
     return float("inf") if mse == 0 else 10.0 * np.log10(255.0 ** 2 / mse)
 
+import cv2
+from django.core.files.base import ContentFile
+
+def numpy_to_png_file(img: 'np.ndarray'):
+    """
+    Convert numpy array to Django ContentFile (PNG format)
+    
+    Args:
+        img: numpy array (grayscale or RGB)
+        filename: name of output file
+    
+    Returns:
+        (filename, ContentFile)
+    """
+    success, buffer = cv2.imencode('.png', img)
+    
+    if not success:
+        raise ValueError("Failed to encode image")
+
+    return  ContentFile(buffer.tobytes(),"image")
+
+from .models import *
+import os
+
+def save_image(path, img):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    
+    success = cv2.imwrite(path, img)
+    if not success:
+        raise ValueError("Failed to save image")
 def embed_watermark(
     host_path: str,
     watermark_path: str,
@@ -225,17 +253,15 @@ def embed_watermark(
         # 🔹 STEP 1: RESIZE
         # =====================================================
         process.set_status(ImageProcess.Status.RESIZING, 10)
+        process.save()
 
         I = resize(host_path)
 
         # save resized image
-        temp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        Image.fromarray(I.astype(np.uint8)).save(temp.name)
-        with open(temp.name, "rb") as f:
-            process.resized_image.save(f"resized_{process.id}.png", ContentFile(f.read()), save=False)
-
-        process.M = M
-        process.block_size = block_size
+        # filename = get_filename("resized.png")
+        # process.resized_image = numpy_to_png_file(I),
+        save_image(path_resized(process),I)
+            
         process.dtcwt_levels = dtcwt_levels
         process.save()
 
@@ -267,16 +293,14 @@ def embed_watermark(
         W_enc = henon_encrypt(W_raw, a=henon_a, b=henon_b)
 
         # save W_raw
-        temp_raw = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        Image.fromarray(W_raw.astype(np.uint8)).save(temp_raw.name)
-        with open(temp_raw.name, "rb") as f:
-            process.watermark_raw.save(f"w_raw_{process.id}.png", ContentFile(f.read()), save=False)
+        # filename = get_filename("watermark_raw.png")
+        # process.watermark_raw.save(filename, numpy_to_png_file(W_raw),True)
 
-        # save W_enc
-        temp_enc = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        Image.fromarray((W_enc * 255).astype(np.uint8)).save(temp_enc.name)
-        with open(temp_enc.name, "rb") as f:
-            process.watermark_encrypted.save(f"w_enc_{process.id}.png", ContentFile(f.read()), save=False)
+        # # save W_enc
+        # filename = get_filename("watermark_encrypted.png")
+        # process.watermark_encrypted.save(filename, numpy_to_png_file(W_enc),True)
+        save_image(path_wm_raw(process),W_raw)
+        save_image(path_wm_encrypted(process),W_enc)
 
         process.henon_a = henon_a
         process.henon_b = henon_b
@@ -287,6 +311,7 @@ def embed_watermark(
         # 🔹 STEP 4: SVD
         # =====================================================
         process.set_status(ImageProcess.Status.SVD, 55)
+       
 
         Uw, Sw_full, Vtw = _svd(W_enc)
 
@@ -327,6 +352,7 @@ def embed_watermark(
         # 🔹 STEP 6: EMBEDDING
         # =====================================================
         process.set_status(ImageProcess.Status.EMBEDDING, 85)
+        
 
         new_dct_blocks = []
         HSw_new_dominant = np.empty(n_blocks, dtype=np.float64)
@@ -341,10 +367,9 @@ def embed_watermark(
         Iw_uint8 = np.clip(Iw, 0, 255).astype(np.uint8)
 
         # save output image
-        temp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        Image.fromarray(Iw_uint8).save(temp_out.name)
-        with open(temp_out.name, "rb") as f:
-            process.watermarked_image.save(f"output_{process.id}.png", ContentFile(f.read()), save=False)
+        # filename = get_filename("output.png")
+        # process.watermarked_image.save(filename, numpy_to_png_file(Iw_uint8),True)
+        save_image(path_output(process),Iw_uint8)
 
         _psnr = psnr(I, Iw_uint8.astype(np.float64))
         process.psnr_value = float(_psnr)
@@ -353,7 +378,9 @@ def embed_watermark(
         # =====================================================
         # 🔹 STEP 7: THRESHOLD
         # =====================================================
-        Iw_reloaded = resize(temp_out.name)
+        process.set_status(ImageProcess.Status.THRESHOLDING, 95)
+        
+        Iw_reloaded = resize(path_output(process))
 
         _, sv_reload, _, _, _, _, _, _ = _forward_pipeline(
             Iw_reloaded, block_size, dtcwt_levels
@@ -376,8 +403,10 @@ def embed_watermark(
         # =====================================================
         # 🔹 SAVE KEY (.npz)
         # =====================================================
-        key_path = tempfile.NamedTemporaryFile(suffix=".npz", delete=False).name
+        key_path = path_key(process)
 
+        os.makedirs(os.path.dirname(key_path), exist_ok=True)
+        
         np.savez(
             key_path,
             alpha_star=alpha_star,
@@ -392,9 +421,7 @@ def embed_watermark(
             block_size=block_size,
             dtcwt_levels=dtcwt_levels,
         )
-
-        with open(key_path, "rb") as f:
-            process.key_file.save(f"key_{process.id}.npz", ContentFile(f.read()), save=False)
+        
 
         # =====================================================
         # 🔹 COMPLETE

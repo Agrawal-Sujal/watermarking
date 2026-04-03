@@ -5,8 +5,25 @@ from rest_framework import status
 import threading
 from django.shortcuts import get_object_or_404
 from .utils_runner import run_pipeline
-from .models import ImageProcess
+from .models import *
+import os
+import cv2
+import numpy as np
 
+
+def save_uploaded_file(file, path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    file.seek(0)
+    # convert file → numpy array
+    file_bytes = np.frombuffer(file.read(), np.uint8)
+    img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+    if img is None:
+        raise ValueError("Invalid image file")
+
+    success = cv2.imwrite(path, img)
+    if not success:
+        raise ValueError("Failed to save image")
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -43,41 +60,38 @@ def upload_images(request):
             status=ImageProcess.Status.PENDING
         )
 
-        # ✅ Step 2: Assign files
-        process.original_image = original
-        process.watermark_image = watermark
-        process.save()
+        save_uploaded_file(original,path_original(process))
+        save_uploaded_file(watermark,path_watermark(process))
 
+        start_process(process)
+        
         return Response({
-            "message": "Upload successful",
+            "message": "Process Started",
             "process_id": process.id,
             "status": process.status,
-            "original_image": process.original_image.url,
-            "watermark_image": process.watermark_image.url
         }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
+        print(str(e))
         return Response(
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def start_process(request, process_id):
-    process = get_object_or_404(
-        ImageProcess,
-        id=process_id,
-        user=request.user
-    )
+def start_process(process):
+    # process = get_object_or_404(
+    #     ImageProcess,
+    #     id=process_id,
+    #     user=request.user
+    # )
 
-    if process.status not in [ImageProcess.Status.PENDING, ImageProcess.Status.FAILED]:
-        return Response({
-            "error": "Process already started"
-        }, status=status.HTTP_400_BAD_REQUEST)
+    # if process.status not in [ImageProcess.Status.PENDING, ImageProcess.Status.FAILED]:
+    #     return Response({
+    #         "error": "Process already started"
+    #     }, status=status.HTTP_400_BAD_REQUEST)
 
-    process.set_status(ImageProcess.Status.RESIZING, 5)
+    process.set_status(ImageProcess.Status.PENDING, 0)
 
     thread = threading.Thread(
         target=run_pipeline,
