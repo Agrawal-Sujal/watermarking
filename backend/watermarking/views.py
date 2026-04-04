@@ -9,7 +9,7 @@ from .models import *
 import os
 import cv2
 import numpy as np
-
+from django.http import FileResponse
 
 def save_uploaded_file(file, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -105,3 +105,207 @@ def start_process(process):
         "process_id": process.id,
         "status": process.status
     })
+    
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_process_status(request, process_id):
+    process = get_object_or_404(
+        ImageProcess,
+        id=process_id,
+        user=request.user
+    )
+
+    return Response({
+        "id": process.id,
+        "status": process.status,
+        "progress": process.progress,
+        "error": process.error_message,
+        "created_at": process.created_at
+    })
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_resizing_step(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    return Response({
+        "status": process.status,
+        "progress": process.progress,
+        "dtcwt_levels": process.dtcwt_levels,
+    })
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_resizing_step(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    return Response({
+        "status": process.status,
+        "progress": process.progress,
+        "dtcwt_levels": process.dtcwt_levels,
+    })
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_forwarding_step(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    return Response({
+        "n_blocks": process.n_blocks,
+        "sv_length": process.sv_length,
+        "LL_shape": [process.LL_shape_h, process.LL_shape_w],
+    })
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_encryption_step(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    return Response({
+        "henon_a": process.henon_a,
+        "henon_b": process.henon_b,
+        "watermark_shape": process.watermark_shape,
+    })
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_pso_step(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    return Response({
+        "alpha_star": process.alpha_star,
+        "pso_cost": process.pso_cost,
+        "pso_particles": process.pso_particles,
+        "pso_iterations": process.pso_iterations,
+    })
+    
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_svd_step(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    return Response({
+        "info": "SVD applied on watermark",
+    })
+    
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_pso_step(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    return Response({
+        "alpha_star": process.alpha_star,
+        "pso_cost": process.pso_cost,
+        "pso_particles": process.pso_particles,
+        "pso_iterations": process.pso_iterations,
+    })
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_embedding_step(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    return Response({
+        "psnr_value": process.psnr_value,
+    })
+    
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_threshold_step(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    return Response({
+        "max_benign_drift": process.max_benign_drift,
+        "auto_threshold": process.auto_threshold,
+        "final_threshold": process.final_threshold,
+    })
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_original_image(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    path = path_original(process)
+
+    if not os.path.exists(path):
+        return Response({"error": "Image not found"}, status=404)
+
+    return FileResponse(open(path, "rb"), content_type="image/png")
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_resized_image(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    path = path_resized(process)
+
+    if not os.path.exists(path):
+        return Response({"error": "Image not found"}, status=404)
+
+    return FileResponse(open(path, "rb"), content_type="image/png")
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_watermark_raw(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    path = path_wm_raw(process)
+
+    if not os.path.exists(path):
+        return Response({"error": "Image not found"}, status=404)
+
+    return FileResponse(open(path, "rb"), content_type="image/png")
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_watermark_raw(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    path = path_wm_raw(process)
+
+    if not os.path.exists(path):
+        return Response({"error": "Image not found"}, status=404)
+
+    return FileResponse(open(path, "rb"), content_type="image/png")
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_watermark_encrypted(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    path = path_wm_encrypted(process)
+
+    if not os.path.exists(path):
+        return Response({"error": "Image not found"}, status=404)
+
+    return FileResponse(open(path, "rb"), content_type="image/png")
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_output_image(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    path = path_output(process)
+
+    if not os.path.exists(path):
+        return Response({"error": "Image not found"}, status=404)
+
+    return FileResponse(open(path, "rb"), content_type="image/png")
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def download_key(request, process_id):
+    process = get_object_or_404(ImageProcess, id=process_id, user=request.user)
+
+    path = path_key(process)
+    path+=".npz"
+    print(path)
+    if not os.path.exists(path):
+        return Response({"error": "Key not found"}, status=404)
+
+    return FileResponse(open(path, "rb"), content_type = "npz")

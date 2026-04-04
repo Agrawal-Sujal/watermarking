@@ -1,11 +1,13 @@
 import { useState } from "react";
 import Topbar from "./TopBar";
-import API from "../api/api"; // ✅ your axios instance
+import API from "../api/api";
+import PipelineProgress from "./PipeLineProgress";
 
 export default function Upload() {
   const [image, setImage] = useState(null);
   const [watermark, setWatermark] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [processId, setProcessId] = useState(null); // ← when set, switch to pipeline view
 
   const handleStart = async () => {
     if (!image || !watermark) {
@@ -21,21 +23,32 @@ export default function Upload() {
       formData.append("watermark_image", watermark);
 
       const res = await API.post("watermarking/upload/", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      console.log(res.data);
-      alert("Watermarking completed ✅");
+      setProcessId(res.data.process_id);
 
     } catch (err) {
       console.error(err);
-      alert("Error processing image");
-    } finally {
+      alert("Error starting process");
       setLoading(false);
     }
   };
+
+  // ── Switch to pipeline view once process starts ──
+  if (processId) {
+    return (
+      <PipelineProgress
+        processId={processId}
+        onReset={() => {
+          setProcessId(null);
+          setImage(null);
+          setWatermark(null);
+          setLoading(false);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="page">
@@ -68,12 +81,7 @@ export default function Upload() {
                 ) : (
                   <div className="preview-box">
                     <img src={URL.createObjectURL(image)} alt="preview" />
-                    <button
-                      className="remove-btn"
-                      onClick={() => setImage(null)}
-                    >
-                      ✕
-                    </button>
+                    <button className="remove-btn" onClick={() => setImage(null)}>✕</button>
                   </div>
                 )}
               </div>
@@ -93,34 +101,26 @@ export default function Upload() {
                 ) : (
                   <div className="preview-box">
                     <img src={URL.createObjectURL(watermark)} alt="preview" />
-                    <button
-                      className="remove-btn"
-                      onClick={() => setWatermark(null)}
-                    >
-                      ✕
-                    </button>
+                    <button className="remove-btn" onClick={() => setWatermark(null)}>✕</button>
                   </div>
                 )}
               </div>
 
             </div>
 
-            {/* BUTTON */}
             <div className="center-btn">
               <button
                 className="primary-btn"
                 onClick={handleStart}
                 disabled={loading}
               >
-                {loading ? "Processing..." : "Start Processing"}
+                {loading ? "Starting…" : "Start Processing"}
               </button>
             </div>
 
-            {/* SPINNER */}
             {loading && <div className="spinner" />}
 
           </div>
-
         </div>
       </div>
     </div>
