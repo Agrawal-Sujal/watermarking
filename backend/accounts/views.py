@@ -1,12 +1,15 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view,permission_classes, authentication_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
 @api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])    
 def register(request):
     data = request.data
 
@@ -32,8 +35,9 @@ def register(request):
     }, status=201)
     
     
-    
 @api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])    
 def login(request):
     data = request.data
 

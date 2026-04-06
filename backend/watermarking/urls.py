@@ -25,3 +25,54 @@ urlpatterns = [
     # key
     path("process/<int:process_id>/key/", download_key),
 ]
+from .views import (
+    submit_verify,
+    get_verify_status,
+    get_verify_result,
+    get_verify_received_image,
+    get_verify_tamper_map,
+    get_verify_overlay,
+)
+
+urlpatterns += [
+    # ── Submit ───────────────────────────────────────────────
+    # POST  /verify/submit/
+    #   Body: received_image (file), process_id (int)
+    path("verify/submit/", submit_verify, name="submit_verify"),
+
+    # ── Status polling ───────────────────────────────────────
+    # GET   /verify/<id>/status/
+    path(
+        "verify/<int:verification_id>/status/",
+        get_verify_status,
+        name="get_verify_status",
+    ),
+
+    # ── Full result ──────────────────────────────────────────
+    # GET   /verify/<id>/result/
+    path(
+        "verify/<int:verification_id>/result/",
+        get_verify_result,
+        name="get_verify_result",
+    ),
+
+    # ── Images ───────────────────────────────────────────────
+    # GET   /verify/<id>/image/received/
+    path(
+        "verify/<int:verification_id>/image/received/",
+        get_verify_received_image,
+        name="get_verify_received_image",
+    ),
+    # GET   /verify/<id>/image/tamper_map/
+    path(
+        "verify/<int:verification_id>/image/tamper_map/",
+        get_verify_tamper_map,
+        name="get_verify_tamper_map",
+    ),
+    # GET   /verify/<id>/image/overlay/
+    path(
+        "verify/<int:verification_id>/image/overlay/",
+        get_verify_overlay,
+        name="get_verify_overlay",
+    ),
+]

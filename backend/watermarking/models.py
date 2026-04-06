@@ -137,3 +137,105 @@ class ImageProcess(models.Model):
         self.save()
     
     
+
+def path_verify_received(instance):
+    """Uploaded (possibly tampered) image to verify."""
+    return (
+        f"storage/verify/user_{instance.user.id}"
+        f"/verify_{instance.id}/received_image.png"
+    )
+
+
+def path_verify_tamper_map(instance):
+    """Green/red block map produced by verify_tamper."""
+    return (
+        f"storage/verify/user_{instance.user.id}"
+        f"/verify_{instance.id}/tamper_map.png"
+    )
+
+
+def path_verify_overlay(instance):
+    """Received image with red overlay on tampered regions."""
+    return (
+        f"storage/verify/user_{instance.user.id}"
+        f"/verify_{instance.id}/tamper_overlay.png"
+    )
+
+
+# ── Model ────────────────────────────────────────────────────
+
+class TamperVerification(models.Model):
+    """
+    One verify_tamper() run.
+
+    Lifecycle
+    ---------
+    PENDING  →  VERIFYING  →  COMPLETED
+                           →  FAILED
+    """
+
+    class Status(models.TextChoices):
+        PENDING   = "pending",    "Pending"
+        VERIFYING = "verifying",  "Running Tamper Verification"
+        COMPLETED = "completed",  "Completed"
+        FAILED    = "failed",     "Failed"
+
+    # ── Relations ────────────────────────────────────────────
+    user = models.ForeignKey(
+        "auth.User",
+        on_delete=models.CASCADE,
+        related_name="tamper_verifications",
+    )
+    # The ImageProcess whose key was used for embedding.
+    # Nullable so a user can supply an external key file instead.
+    source_process = models.ForeignKey(
+        "ImageProcess",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verifications",
+        help_text="The embedding process whose .npz key is used.",
+    )
+
+    # ── Status / progress ────────────────────────────────────
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    progress      = models.IntegerField(default=0)
+    error_message = models.TextField(null=True, blank=True)
+
+    # ── Results written by verify_tamper() ───────────────────
+    is_tampered   = models.BooleanField(null=True, blank=True)
+    tampered_frac = models.FloatField(null=True, blank=True)
+    # Grid stored as a flat JSON list (row-major); reconstruct with
+    # np.array(obj.tamper_grid_flat).reshape(obj.grid_rows, obj.grid_cols)
+    tamper_grid_flat = models.JSONField(null=True, blank=True)
+    grid_rows        = models.IntegerField(null=True, blank=True)
+    grid_cols        = models.IntegerField(null=True, blank=True)
+    # Per-block SV deltas (same shape as grid, stored flat)
+    sv_deltas_flat   = models.JSONField(null=True, blank=True)
+    tamper_threshold_used = models.FloatField(null=True, blank=True)
+
+    # ── Timestamps ───────────────────────────────────────────
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # ── Helpers ──────────────────────────────────────────────
+    def set_status(self, status: str, progress: int) -> None:
+        self.status   = status
+        self.progress = progress
+        self.save()
+
+    def mark_failed(self, error: str) -> None:
+        self.status        = self.Status.FAILED
+        self.error_message = str(error)
+        self.save()
+
+    def __str__(self) -> str:
+        verdict = (
+            "TAMPERED" if self.is_tampered
+            else "AUTHENTIC" if self.is_tampered is False
+            else "UNKNOWN"
+        )
+        return f"Verify {self.id} [{verdict}] – {self.user.username}"

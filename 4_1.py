@@ -180,7 +180,7 @@ def resize(image_path):
         constant_values=0
     )
 
-    return padded.astype(np.float32)
+    return padded.astype(np.float32),H,W
 
 def _load_gray(path: str, size: int) -> np.ndarray:
     """Load image, convert to grayscale, resize, return float64."""
@@ -300,7 +300,7 @@ def embed_watermark(
     # S1 – Load
     print("[Alg1 / S1]  Loading host image …")
     # I = _load_gray(host_path, M)
-    I = resize(host_path)
+    I,H,W = resize(host_path)
 
     # S2-4 – Forward pipeline
     print("[Alg1 / S2-4]  DTCWT → partition → DCT → SVD …")
@@ -369,7 +369,7 @@ def embed_watermark(
     # Calibrate: measure the actual SV drift caused by PNG save→reload
     # so we can set an informed threshold at runtime.
     # Iw_reloaded   = _load_gray(output_path, M)
-    Iw_reloaded = resize(output_path)
+    Iw_reloaded,_,_ = resize(output_path)
     _, sv_reload, _, _, _, _, _, _ = _forward_pipeline(
         Iw_reloaded, block_size, dtcwt_levels
     )
@@ -411,7 +411,7 @@ def extract_watermark(watermarked_path: str, key: EmbedKey,
                       output_path: str = "extracted_watermark.png") -> np.ndarray:
 
     print("[Alg2] Forward pipeline …")
-    Iw = resize(watermarked_path)
+    Iw,_,_ = resize(watermarked_path)
 
     _, HSw_hat_list, *_ = _forward_pipeline(
         Iw, key.block_size, key.dtcwt_levels
@@ -524,7 +524,7 @@ def verify_tamper(
 
     print("[Alg3 / T1]  Forward pipeline on received image …")
     # img_recv = _load_gray(received_path, key.M)
-    img_recv = resize(received_path)
+    img_recv,_,_ = resize(received_path)
     (_, HSw_hat_list, _, _, positions,
      LL, highpasses, tr) = _forward_pipeline(
         img_recv, key.block_size, key.dtcwt_levels
@@ -577,12 +577,12 @@ def verify_tamper(
                 draw.rectangle([x0, y0,
                                  x0 + cell_px - 1, y0 + cell_px - 1],
                                 fill=(239, 68, 68))
-    tmap_resized = tmap.resize((key.M, key.M), Image.NEAREST)
+    tmap_resized,_,_ = tmap.resize((key.M, key.M), Image.NEAREST)
     tmap_resized.save(tamper_map_path)
     print(f"           Tamper map → {tamper_map_path}")
 
     # Overlay on received image
-    recv_rgb = Image.open(received_path).convert("RGB").resize(
+    recv_rgb ,_,_= Image.open(received_path).convert("RGB").resize(
         (key.M, key.M), Image.LANCZOS)
     overlay  = Image.new("RGBA", (key.M, key.M), (0, 0, 0, 0))
     draw_ov  = ImageDraw.Draw(overlay)

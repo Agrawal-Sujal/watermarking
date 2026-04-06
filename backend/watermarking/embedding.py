@@ -1,5 +1,5 @@
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass,field
 from typing import List, Tuple
 from PIL import Image
 from scipy.fft import dctn, idctn
@@ -15,13 +15,13 @@ import io
 @dataclass
 class EmbedKey:
     alpha_star        : float
-    HSw_list          : List[np.ndarray]
     HSw_new_dominant  : np.ndarray        # shape (n_blocks,)  float64
     tamper_threshold  : float
-    wm_sv_list        : List[np.ndarray]
     Uw                : np.ndarray
     Vtw               : np.ndarray
     watermark_shape   : Tuple[int, int]
+    wm_sv_list        : List[np.ndarray] = field(default_factory=list)
+    HSw_list          : List[np.ndarray] = field(default_factory=list)
     henon_a           : float = 1.4
     henon_b           : float = 0.3
     M                 : int   = 512

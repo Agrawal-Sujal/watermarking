@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'accounts',
     'watermarking',
-    'corsheaders'
+    'corsheaders',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True 
