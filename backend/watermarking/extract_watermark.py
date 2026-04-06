@@ -19,21 +19,16 @@ Algorithm
 """
 
 import os
-import traceback
-
 import cv2
 import numpy as np
-from PIL import Image
-
 from .embedding import (
-    EmbedKey,
     _forward_pipeline,
     _isvd,
     henon_decrypt,
-    resize,
 )
 from .models import WatermarkExtraction
 from .utility import reconstruct_full_image,getImg
+from .embed_key import EmbedKey
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  INTERNAL HELPERS

@@ -13,17 +13,14 @@ Usage (called from the view):
 """
 
 import traceback
-import numpy as np
-
-from .embedding import EmbedKey
 from .extract_watermark import extract_watermark
-from .verify_runner import load_key
-from .models import (
-    WatermarkExtraction,
+from .models import WatermarkExtraction
+from .path_helpers import (
     path_extract_input,
     path_extract_output,
     path_key,
 )
+from .utility import load_key
 
 def run_extract_pipeline(extraction_id: int) -> None:
     """

@@ -1,41 +1,21 @@
+from .models import ImageProcess
 import numpy as np
-from dataclasses import dataclass,field
-from typing import List, Tuple
 from PIL import Image
 from scipy.fft import dctn, idctn
 import dtcwt
 from dtcwt.numpy import Pyramid
 from pyswarms.single.global_best import GlobalBestPSO
-import io
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  KEY BUNDLE
-# ══════════════════════════════════════════════════════════════════════════════
-
-@dataclass
-class EmbedKey:
-    alpha_star        : float
-    HSw_new_dominant  : np.ndarray        # shape (n_blocks,)  float64
-    tamper_threshold  : float
-    Uw                : np.ndarray
-    Vtw               : np.ndarray
-    watermark_shape   : Tuple[int, int]
-    wm_sv_list        : List[np.ndarray] = field(default_factory=list)
-    HSw_list          : List[np.ndarray] = field(default_factory=list)
-    henon_a           : float = 1.4
-    henon_b           : float = 0.3
-    M                 : int   = 512
-    block_size        : int   = 8
-    dtcwt_levels      : int   = 3
-    
-    orig_H            : int = 0
-    orig_W            : int = 0
-    pad_h             : int = 0
-    pad_w             : int = 0
-
-    bottom_pad        : np.ndarray = None
-    right_pad         : np.ndarray = None
-
+import cv2
+from django.core.files.base import ContentFile
+import math
+import os
+from .path_helpers import (
+    path_resized,
+    path_wm_raw,
+    path_key,
+    path_output,
+    path_wm_encrypted
+)
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  HENON CHAOTIC SCRAMBLING
@@ -105,8 +85,7 @@ def _isvd(U, s, Vt) -> np.ndarray:
 #  IMAGE LOAD HELPER
 # ══════════════════════════════════════════════════════════════════════════════
 
-import cv2
-import math
+
 def resize(image_path):
 
     # Load grayscale image
@@ -223,8 +202,7 @@ def psnr(original: np.ndarray, modified: np.ndarray) -> float:
     mse = np.mean((original.astype(np.float64) - modified.astype(np.float64)) ** 2)
     return float("inf") if mse == 0 else 10.0 * np.log10(255.0 ** 2 / mse)
 
-import cv2
-from django.core.files.base import ContentFile
+
 
 def numpy_to_png_file(img: 'np.ndarray'):
     """
@@ -244,8 +222,7 @@ def numpy_to_png_file(img: 'np.ndarray'):
 
     return  ContentFile(buffer.tobytes(),"image")
 
-from .models import *
-import os
+
 
 def save_image(path, img):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -269,9 +246,6 @@ def embed_watermark(
     output_path: str = "watermarked.png",
 ) -> tuple:
 
-    from .models import ImageProcess
-    import numpy as np
-
     process = ImageProcess.objects.get(id=process_id)
 
     try:
@@ -284,9 +258,6 @@ def embed_watermark(
         I, pad_info = resize2(host_path)
         orig_H, orig_W, pad_h, pad_w = pad_info
 
-        # save resized image
-        # filename = get_filename("resized.png")
-        # process.resized_image = numpy_to_png_file(I),
         save_image(path_resized(process),I)
             
         process.dtcwt_levels = dtcwt_levels

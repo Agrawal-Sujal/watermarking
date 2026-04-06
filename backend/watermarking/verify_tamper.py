@@ -15,25 +15,14 @@ It mirrors the style of embed_watermark() in embedding.py:
 """
 
 import os
-import traceback
-
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw
-
-# ── Re-use helpers defined in embedding.py ───────────────────────────────────
-from .embedding import (
-    EmbedKey,
-    _forward_pipeline,
-    resize,
-)
-from .models import (
-    TamperVerification,
-    path_verify_tamper_map,
-    path_verify_overlay,
-)
-
+from .embedding import _forward_pipeline
+from .models import TamperVerification
 from .utility import reconstruct_full_image,getImg
+from .embed_key import EmbedKey
+from .path_helpers import path_verify_tamper_map, path_verify_overlay
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  INTERNAL HELPERS
@@ -131,17 +120,17 @@ def _print_summary(
     tampered_frac: float,
     is_tampered: bool,
 ) -> None:
-    print(f"           Blocks analysed : {n_used}")
+    print(f"Blocks analysed : {n_used}")
     print(
-        f"           Max SV delta    : {sv_deltas.max():.4f}  "
+        f"Max SV delta : {sv_deltas.max():.4f}  "
         f"(threshold = {T:.4f})"
     )
     print(
-        f"           Tampered blocks : {n_tampered}  "
+        f"Tampered blocks : {n_tampered}  "
         f"({tampered_frac * 100:.1f} %)"
     )
-    verdict = "⚠  TAMPERED" if is_tampered else "✓  AUTHENTIC"
-    print(f"           Verdict  →  {verdict}")
+    verdict = "⚠ TAMPERED" if is_tampered else "✓ AUTHENTIC"
+    print(f"Verdict → {verdict}")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -191,7 +180,6 @@ def verify_tamper(
     }
     """
 
-    # ── optional DB handle ────────────────────────────────────────────────────
     verification: TamperVerification | None = None
     if verification_id is not None:
         try:
@@ -203,14 +191,17 @@ def verify_tamper(
         if verification is not None:
             verification.set_status(TamperVerification.Status.VERIFYING, progress)
 
-    # ── Step 1: load & resize received image ─────────────────────────────────
-    print("[verify_tamper / S1]  Loading received image …")
+    # =====================================================
+    # 🔹 STEP 1: load & resize received image
+    # =====================================================
     _tick(10)
 
     img_recv = getImg(received_path)  
     img_recv = reconstruct_full_image(img_recv,key)
-    # ── Step 2: forward pipeline ─────────────────────────────────────────────
-    print("[verify_tamper / S2]  Running forward pipeline …")
+    
+    # =====================================================
+    # 🔹 STEP 2: forward pipeline
+    # =====================================================
     _tick(25)
 
     (_, HSw_hat_list, _, _, positions,
@@ -223,8 +214,9 @@ def verify_tamper(
     T        = key.tamper_threshold
     print(f"           Threshold T = {T:.4f}  |  blocks = {n_blocks}")
 
-    # ── Step 3: per-block SV distance ────────────────────────────────────────
-    print("[verify_tamper / S3]  Computing SV deltas …")
+    # =====================================================
+    # 🔹 STEP 3: per-block SV distance
+    # =====================================================
     _tick(45)
 
     sv_deltas_flat = np.array(
@@ -248,21 +240,19 @@ def verify_tamper(
     _print_summary(n_used, sv_deltas_flat[:n_used], T,
                    n_tampered, tampered_frac, is_tampered)
 
-    # ── Step 4: build visual outputs ─────────────────────────────────────────
-    print("[verify_tamper / S4]  Generating visual outputs …")
+    # =====================================================
+    # 🔹 STEP 4: build visual outputs
+    # =====================================================
     _tick(65)
 
-    # cell_px: how many pixels each LL block maps to in the original image
     scale   = 2 ** key.dtcwt_levels
     cell_px = key.block_size * scale
 
-    # ── tamper map ────────────────────────────────────────────────────────────
     tmap_pil = _build_tamper_map(tamper_grid, cell_px, key.M, key.M)
     tmap_bgr = cv2.cvtColor(np.array(tmap_pil), cv2.COLOR_RGB2BGR)
     _save_png(tamper_map_path, tmap_bgr)
     print(f"           Tamper map  → {tamper_map_path}")
 
-    # ── overlay ───────────────────────────────────────────────────────────────
     received_bgr = cv2.imread(received_path, cv2.IMREAD_COLOR)
     if received_bgr is None:
         raise ValueError(f"Could not open received image: {received_path}")
@@ -273,7 +263,9 @@ def verify_tamper(
 
     _tick(90)
 
-    # ── Step 5: persist results to DB row ────────────────────────────────────
+    # =====================================================
+    # 🔹 STEP 5: persist results to DB row
+    # =====================================================
     if verification is not None:
         verification.is_tampered          = is_tampered
         verification.tampered_frac        = tampered_frac

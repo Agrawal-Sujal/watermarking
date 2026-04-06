@@ -1,6 +1,7 @@
-# urls.py
 from django.urls import path
-from .views import *
+from .upload_view import *
+from .extract_view import *
+from .verify_view import *
 
 urlpatterns = [
     path("upload/", upload_images, name="upload_images"),
@@ -25,51 +26,32 @@ urlpatterns = [
     # key
     path("process/<int:process_id>/key/", download_key),
 ]
-from .views import (
-    submit_verify,
-    get_verify_status,
-    get_verify_result,
-    get_verify_received_image,
-    get_verify_tamper_map,
-    get_verify_overlay,
-)
 
 urlpatterns += [
-    # ── Submit ───────────────────────────────────────────────
-    # POST  /verify/submit/
-    #   Body: received_image (file), process_id (int)
     path("verify/submit/", submit_verify, name="submit_verify"),
 
-    # ── Status polling ───────────────────────────────────────
-    # GET   /verify/<id>/status/
     path(
         "verify/<int:verification_id>/status/",
         get_verify_status,
         name="get_verify_status",
     ),
 
-    # ── Full result ──────────────────────────────────────────
-    # GET   /verify/<id>/result/
     path(
         "verify/<int:verification_id>/result/",
         get_verify_result,
         name="get_verify_result",
     ),
 
-    # ── Images ───────────────────────────────────────────────
-    # GET   /verify/<id>/image/received/
     path(
         "verify/<int:verification_id>/image/received/",
         get_verify_received_image,
         name="get_verify_received_image",
     ),
-    # GET   /verify/<id>/image/tamper_map/
     path(
         "verify/<int:verification_id>/image/tamper_map/",
         get_verify_tamper_map,
         name="get_verify_tamper_map",
     ),
-    # GET   /verify/<id>/image/overlay/
     path(
         "verify/<int:verification_id>/image/overlay/",
         get_verify_overlay,
@@ -77,40 +59,27 @@ urlpatterns += [
     ),
 ]
 
-from .views import (
-    submit_extract,
-    get_extract_status,
-    get_extract_result,
-    get_extract_input_image,
-    get_extract_output_image,
-)
- 
 urlpatterns += [
-    # POST  /extract/submit/
     path("extract/submit/", submit_extract, name="submit_extract"),
  
-    # GET   /extract/<id>/status/
     path(
         "extract/<int:extraction_id>/status/",
         get_extract_status,
         name="get_extract_status",
     ),
  
-    # GET   /extract/<id>/result/
     path(
         "extract/<int:extraction_id>/result/",
         get_extract_result,
         name="get_extract_result",
     ),
  
-    # GET   /extract/<id>/image/input/
     path(
         "extract/<int:extraction_id>/image/input/",
         get_extract_input_image,
         name="get_extract_input_image",
     ),
  
-    # GET   /extract/<id>/image/output/
     path(
         "extract/<int:extraction_id>/image/output/",
         get_extract_output_image,

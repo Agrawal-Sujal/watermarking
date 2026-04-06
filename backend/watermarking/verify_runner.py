@@ -16,44 +16,15 @@ Usage (called from the view via threading.Thread):
 """
 
 import traceback
-import numpy as np
-
-from .models import (
-    TamperVerification,
+from .models import TamperVerification
+from .verify_tamper import verify_tamper
+from .utility import load_key
+from .path_helpers import (
+    path_key,
     path_verify_received,
     path_verify_tamper_map,
-    path_verify_overlay,
-    path_key,
-)
-from .embedding import EmbedKey
-from .verify_tamper import verify_tamper
-
-
-def load_key(npz_path: str) -> EmbedKey:
-    """Reconstruct EmbedKey from the .npz file saved during embedding."""
-    data = np.load(npz_path, allow_pickle=True)
-
-    return EmbedKey(
-        alpha_star        = float(data["alpha_star"]),
-        HSw_new_dominant  = data["HSw_new_dominant"],
-        tamper_threshold  = float(data["tamper_threshold"]),
-        Uw                = data["Uw"],
-        Vtw               = data["Vtw"],
-        watermark_shape   = tuple(data["watermark_shape"].tolist()),
-        henon_a           = float(data["henon_a"]),
-        henon_b           = float(data["henon_b"]),
-        M                 = int(data["M"]),
-        block_size        = int(data["block_size"]),
-        dtcwt_levels      = int(data["dtcwt_levels"]),
-        HSw_list          = tuple(data["HSw_list"].tolist()),
-        orig_H            = int(data["orig_H"]),
-        orig_W            = int(data["orig_W"]),
-        pad_h             = int(data["pad_h"]),
-        pad_w             = int(data["pad_w"]),
-        bottom_pad        = data["bottom_pad"],
-        right_pad         = data["right_pad"],
+    path_verify_overlay
     )
-
 
 def run_verify_pipeline(verification_id: int) -> None:
     """
