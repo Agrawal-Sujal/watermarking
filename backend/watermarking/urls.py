@@ -76,3 +76,44 @@ urlpatterns += [
         name="get_verify_overlay",
     ),
 ]
+
+from .views import (
+    submit_extract,
+    get_extract_status,
+    get_extract_result,
+    get_extract_input_image,
+    get_extract_output_image,
+)
+ 
+urlpatterns += [
+    # POST  /extract/submit/
+    path("extract/submit/", submit_extract, name="submit_extract"),
+ 
+    # GET   /extract/<id>/status/
+    path(
+        "extract/<int:extraction_id>/status/",
+        get_extract_status,
+        name="get_extract_status",
+    ),
+ 
+    # GET   /extract/<id>/result/
+    path(
+        "extract/<int:extraction_id>/result/",
+        get_extract_result,
+        name="get_extract_result",
+    ),
+ 
+    # GET   /extract/<id>/image/input/
+    path(
+        "extract/<int:extraction_id>/image/input/",
+        get_extract_input_image,
+        name="get_extract_input_image",
+    ),
+ 
+    # GET   /extract/<id>/image/output/
+    path(
+        "extract/<int:extraction_id>/image/output/",
+        get_extract_output_image,
+        name="get_extract_output_image",
+    ),
+]

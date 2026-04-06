@@ -35,6 +35,14 @@ export default function Topbar() {
         >
           Verify
         </button>
+         <button
+          className={`nav-btn ${
+            location.pathname === "/extract" ? "active" : ""
+          }`}
+          onClick={() => navigate("/extract")}
+        >
+          Extract
+        </button>
       </div>
 
       <div className="topbar-right">

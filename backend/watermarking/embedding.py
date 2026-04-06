@@ -97,10 +97,9 @@ def _isvd(U, s, Vt) -> np.ndarray:
 #  IMAGE LOAD HELPER
 # ══════════════════════════════════════════════════════════════════════════════
 
+import cv2
+import math
 def resize(image_path):
-    import cv2
-    import numpy as np
-    import math
 
     # Load grayscale image
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -241,10 +240,7 @@ def embed_watermark(
 ) -> tuple:
 
     from .models import ImageProcess
-    from django.core.files.base import ContentFile
-    import tempfile
     import numpy as np
-    from PIL import Image
 
     process = ImageProcess.objects.get(id=process_id)
 
@@ -420,6 +416,7 @@ def embed_watermark(
             M=M,
             block_size=block_size,
             dtcwt_levels=dtcwt_levels,
+            HSw_list=np.array(HSw_list, dtype=object), 
         )
         
 

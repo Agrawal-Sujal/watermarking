@@ -239,3 +239,90 @@ class TamperVerification(models.Model):
             else "UNKNOWN"
         )
         return f"Verify {self.id} [{verdict}] – {self.user.username}"
+    
+    
+    # ============================================================
+# ADD these path helpers and WatermarkExtraction model
+# into your existing models.py
+# ============================================================
+
+# ── Path helpers ─────────────────────────────────────────────
+
+def path_extract_input(instance):
+    """Uploaded watermarked image submitted for extraction."""
+    return (
+        f"storage/extract/user_{instance.user.id}"
+        f"/extract_{instance.id}/watermarked_input.png"
+    )
+
+
+def path_extract_output(instance):
+    """Recovered watermark image written by extract_watermark()."""
+    return (
+        f"storage/extract/user_{instance.user.id}"
+        f"/extract_{instance.id}/extracted_watermark.png"
+    )
+
+
+# ── Model ────────────────────────────────────────────────────
+
+class WatermarkExtraction(models.Model):
+    """
+    One extract_watermark() run.
+
+    Lifecycle:  PENDING → EXTRACTING → COMPLETED
+                                    → FAILED
+    """
+
+    class Status(models.TextChoices):
+        PENDING    = "pending",    "Pending"
+        EXTRACTING = "extracting", "Extracting Watermark"
+        COMPLETED  = "completed",  "Completed"
+        FAILED     = "failed",     "Failed"
+
+    # ── Relations ────────────────────────────────────────────
+    user = models.ForeignKey(
+        "auth.User",
+        on_delete=models.CASCADE,
+        related_name="watermark_extractions",
+    )
+    source_process = models.ForeignKey(
+        "ImageProcess",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="extractions",
+        help_text="The embedding process whose .npz key is used.",
+    )
+
+    # ── Status / progress ────────────────────────────────────
+    status        = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    progress      = models.IntegerField(default=0)
+    error_message = models.TextField(null=True, blank=True)
+
+    # ── Algorithm metadata written back on completion ─────────
+    alpha_star      = models.FloatField(null=True, blank=True)
+    n_blocks        = models.IntegerField(null=True, blank=True)
+    sv_length       = models.IntegerField(null=True, blank=True)
+    watermark_shape = models.JSONField(null=True, blank=True)
+
+    # ── Timestamps ───────────────────────────────────────────
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # ── Helpers ──────────────────────────────────────────────
+    def set_status(self, status: str, progress: int) -> None:
+        self.status   = status
+        self.progress = progress
+        self.save()
+
+    def mark_failed(self, error: str) -> None:
+        self.status        = self.Status.FAILED
+        self.error_message = str(error)
+        self.save()
+
+    def __str__(self) -> str:
+        return f"Extraction {self.id} – {self.user.username}"

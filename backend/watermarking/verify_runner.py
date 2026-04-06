@@ -29,9 +29,9 @@ from .embedding import EmbedKey
 from .verify_tamper import verify_tamper
 
 
-def _load_key(npz_path: str) -> EmbedKey:
+def load_key(npz_path: str) -> EmbedKey:
     """Reconstruct EmbedKey from the .npz file saved during embedding."""
-    data = np.load(npz_path, allow_pickle=False)
+    data = np.load(npz_path, allow_pickle=True)
 
     return EmbedKey(
         alpha_star        = float(data["alpha_star"]),
@@ -45,6 +45,7 @@ def _load_key(npz_path: str) -> EmbedKey:
         M                 = int(data["M"]),
         block_size        = int(data["block_size"]),
         dtcwt_levels      = int(data["dtcwt_levels"]),
+        HSw_list          = tuple(data["HSw_list"].tolist())
     )
 
 
@@ -73,7 +74,7 @@ def run_verify_pipeline(verification_id: int) -> None:
             )
 
         key_path = path_key(verification.source_process) + ".npz"
-        key      = _load_key(key_path)
+        key      = load_key(key_path)
 
         verification.set_status(TamperVerification.Status.VERIFYING, 30)
 

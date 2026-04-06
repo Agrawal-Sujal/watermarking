@@ -26,3 +26,4 @@ dist-ssr
 *.sw?
 *.png
 storage
+*.npz
