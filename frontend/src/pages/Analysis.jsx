@@ -291,10 +291,10 @@ export default function Analysis() {
                                 </div>
                               </td>
                               <td>
-                                <span className="ana-num">{r.psnr === Infinity ? "∞" : r.psnr}</span>
+                                <span className="ana-num">{r.psnr === null || r.psnr === Infinity ? "∞" : r.psnr ?? "—"}</span>
                               </td>
                               <td>
-                                <span className="ana-num">{r.nc}</span>
+                                <span className="ana-num">{r.nc !== null && r.nc !== undefined ? r.nc : "—"}</span>
                               </td>
                               <td>
                                 <span className="ana-num">{r.tampered_blocks}</span>

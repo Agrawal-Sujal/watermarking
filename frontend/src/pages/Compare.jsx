@@ -40,17 +40,21 @@ const METRIC_INFO = {
 function getQualityBadge(metrics) {
   if (!metrics) return null;
   const { psnr, ssim } = metrics;
-  if (psnr >= 40 && ssim >= 0.98) return { text: "Excellent", cls: "badge-excellent" };
-  if (psnr >= 30 && ssim >= 0.90) return { text: "Good", cls: "badge-good" };
-  if (psnr >= 20 && ssim >= 0.70) return { text: "Fair", cls: "badge-fair" };
+  const safePsnr = psnr === null ? Infinity : (Number.isFinite(psnr) ? psnr : 0);
+  const safeSsim = Number.isFinite(ssim) ? ssim : 0;
+  if (safePsnr >= 40 && safeSsim >= 0.98) return { text: "Excellent", cls: "badge-excellent" };
+  if (safePsnr >= 30 && safeSsim >= 0.90) return { text: "Good", cls: "badge-good" };
+  if (safePsnr >= 20 && safeSsim >= 0.70) return { text: "Fair", cls: "badge-fair" };
   return { text: "Poor", cls: "badge-poor" };
 }
 
 /* ── Ring progress for 0-1 metrics ──────────────────────────── */
 function RingGauge({ value, size = 80, stroke = 6, color }) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  const clampedValue = Math.min(Math.max(safeValue, 0), 1);
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - Math.min(value, 1));
+  const offset = circ * (1 - clampedValue);
 
   return (
     <svg width={size} height={size} className="ring-gauge">
@@ -282,17 +286,17 @@ export default function Compare() {
                           <div className="cmp-ring-wrap">
                             <RingGauge value={val} color={ringColor} />
                             <span className="cmp-ring-value">
-                              {(val * 100).toFixed(1)}%
+                              {(Math.min(Math.max(Number.isFinite(val) ? val : 0, 0), 1) * 100).toFixed(1)}%
                             </span>
                           </div>
                         )}
 
                         <span className="cmp-metric-value">
-                          {key === "psnr" && val === Infinity
+                          {key === "psnr" && (val === null || val === Infinity)
                             ? "∞"
-                            : typeof val === "number"
+                            : typeof val === "number" && Number.isFinite(val)
                             ? val.toFixed(key === "mse" ? 4 : 6)
-                            : val}
+                            : val ?? "—"}
                           {info.unit && (
                             <span className="cmp-metric-unit"> {info.unit}</span>
                           )}

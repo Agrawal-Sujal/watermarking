@@ -176,7 +176,7 @@ def _pixel_diff(original_bgr, attacked_bgr):
 
 
 def _compute_psnr(img1, img2):
-    """Compute PSNR between two BGR images."""
+    """Compute PSNR between two BGR images. Returns None when identical."""
     a = img1.astype(np.float64)
     b = img2.astype(np.float64)
     if a.shape != b.shape:
@@ -184,7 +184,7 @@ def _compute_psnr(img1, img2):
                        interpolation=cv2.INTER_LANCZOS4).astype(np.float64)
     mse = np.mean((a - b) ** 2)
     if mse == 0:
-        return float('inf')
+        return None  # identical images — inf is not valid JSON
     return round(float(10 * np.log10(255.0 ** 2 / mse)), 4)
 
 
@@ -378,6 +378,14 @@ def run_single_attack(request):
         # Tamper check
         detected, frac, n_tampered, n_blocks = _quick_tamper_check(atk_path, key)
 
+        # Guard non-finite values for JSON safety
+        def _safe(v, decimals=4):
+            if v is None:
+                return None
+            if not np.isfinite(v):
+                return None
+            return round(float(v), decimals)
+
         return Response({
             "attack_key": attack_key,
             "attack_name": atk_name,
@@ -385,8 +393,8 @@ def run_single_attack(request):
             "pixels_changed": px_changed,
             "total_pixels": px_total,
             "percent_changed": px_pct,
-            "psnr": psnr,
-            "nc": nc,
+            "psnr": _safe(psnr, 4),
+            "nc": _safe(nc, 6),
             "attacked_image": attacked_b64,
             "tamper_detected": detected,
             "tampered_blocks": n_tampered,

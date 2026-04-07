@@ -41,10 +41,10 @@ def _compute_mse(a, b):
 
 
 def _compute_psnr(a, b):
-    """Peak Signal-to-Noise Ratio (dB). Returns Inf when images are identical."""
+    """Peak Signal-to-Noise Ratio (dB). Returns None when images are identical."""
     mse = _compute_mse(a, b)
     if mse == 0:
-        return float("inf")
+        return None  # identical images — inf is not valid JSON
     return float(10.0 * np.log10((255.0 ** 2) / mse))
 
 
@@ -168,12 +168,21 @@ def compare_images(request):
         nc_val = _compute_nc(gray_orig, gray_wm)
         ber_val = _compute_ber(gray_orig, gray_wm)
 
+        # Guard against non-finite floats (NaN/Inf are not valid JSON)
+        def _safe(v, decimals=6):
+            if v is None:
+                return None
+            if not np.isfinite(v):
+                return None
+            return round(float(v), decimals)
+
         return Response({
-            "psnr": round(psnr_val, 4),
-            "mse": round(mse_val, 4),
-            "nc": round(nc_val, 6),
-            "ssim": round(ssim_val, 6),
-            "ber": round(ber_val, 6),
+            "psnr": _safe(psnr_val, 4),
+            "mse": _safe(mse_val, 4),
+            "nc": _safe(nc_val, 6),
+            "ssim": _safe(ssim_val, 6),
+            "ber": _safe(ber_val, 6),
+            "is_identical": psnr_val is None,
             "dimensions": {
                 "original": list(orig.shape[:2]),
                 "watermarked": list(wm.shape[:2]),
