@@ -3,6 +3,7 @@ from .upload_view import *
 from .extract_view import *
 from .verify_view import *
 from .compare_view import compare_images
+from .analysis_view import run_analysis, run_single_attack, run_baseline, get_attack_list
 
 urlpatterns = [
     path("upload/", upload_images, name="upload_images"),
@@ -91,4 +92,12 @@ urlpatterns += [
 # ── Compare ──────────────────────────────────────────────────────
 urlpatterns += [
     path("compare/", compare_images, name="compare_images"),
+]
+
+# ── Analysis ─────────────────────────────────────────────────────
+urlpatterns += [
+    path("analysis/", run_analysis, name="run_analysis"),
+    path("analysis/attack/", run_single_attack, name="run_single_attack"),
+    path("analysis/baseline/", run_baseline, name="run_baseline"),
+    path("analysis/attacks/", get_attack_list, name="get_attack_list"),
 ]
