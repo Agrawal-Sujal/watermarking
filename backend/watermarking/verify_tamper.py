@@ -43,64 +43,71 @@ def _build_tamper_map(
     out_h: int,
 ) -> Image.Image:
     """
-    Produce a green/red block image at the natural DTCWT resolution
-    then resize to (out_w, out_h) with nearest-neighbour.
+    Produce a green/red block image at the original image dimensions.
+    Block coordinates map directly from the padded M×M grid space;
+    since padding is at the bottom and right, (col*cell_px, row*cell_px)
+    are the same pixel positions in the original image.
+
+    Blocks that fall outside the original image bounds are clipped/skipped.
 
     Green  (34, 197, 94)  → authentic block
     Red   (239,  68, 68)  → tampered  block
     """
     n_rows, n_cols = tamper_grid.shape
-    map_w = n_cols * cell_px
-    map_h = n_rows * cell_px
 
-    img = Image.new("RGB", (map_w, map_h), (34, 197, 94))
+    img = Image.new("RGB", (out_w, out_h), (34, 197, 94))
     draw = ImageDraw.Draw(img)
     for row in range(n_rows):
         for col in range(n_cols):
             if tamper_grid[row, col]:
                 x0 = col * cell_px
                 y0 = row * cell_px
-                draw.rectangle(
-                    [x0, y0, x0 + cell_px - 1, y0 + cell_px - 1],
-                    fill=(239, 68, 68),
-                )
+                # Skip blocks that start outside the image
+                if x0 >= out_w or y0 >= out_h:
+                    continue
+                x1 = min((col + 1) * cell_px - 1, out_w - 1)
+                y1 = min((row + 1) * cell_px - 1, out_h - 1)
+                draw.rectangle([x0, y0, x1, y1], fill=(239, 68, 68))
 
-    return img.resize((out_w, out_h), Image.NEAREST)
+    return img
 
 
 def _build_overlay(
-    received_bgr: np.ndarray,  # original-size BGR
+    received_bgr: np.ndarray,  # original-size BGR (orig_H × orig_W)
     tamper_grid: np.ndarray,   # (n_rows, n_cols) bool
     cell_px: int,
-    target_size: int,          # key.M – square target
 ) -> np.ndarray:
     """
-    Resize received image to (target_size × target_size), then paint
-    semi-transparent red rectangles over tampered blocks.
-    Returns a BGR uint8 array.
-    """
-    n_rows, n_cols = tamper_grid.shape
-    map_w = n_cols * cell_px
-    map_h = n_rows * cell_px
+    Paint semi-transparent red rectangles over tampered blocks
+    directly on the received image at its original dimensions.
 
-    recv_resized = cv2.resize(
-        received_bgr, (target_size, target_size), interpolation=cv2.INTER_LANCZOS4
-    )
+    Block coordinates in the padded M×M grid map 1:1 to the original
+    image coordinates because the padding is at the bottom and right
+    edges. No image resizing is performed, so the overlay aligns
+    perfectly with the received image.
+
+    Returns a BGR uint8 array at the received image's original size.
+    """
+    h, w = received_bgr.shape[:2]
+    n_rows, n_cols = tamper_grid.shape
 
     # Work in RGBA PIL for alpha-composite
     base = Image.fromarray(
-        cv2.cvtColor(recv_resized, cv2.COLOR_BGR2RGBA)
+        cv2.cvtColor(received_bgr, cv2.COLOR_BGR2RGBA)
     )
-    overlay = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
     for row in range(n_rows):
         for col in range(n_cols):
             if tamper_grid[row, col]:
-                x0 = int(col * cell_px * target_size / map_w)
-                y0 = int(row * cell_px * target_size / map_h)
-                x1 = int((col + 1) * cell_px * target_size / map_w) - 1
-                y1 = int((row + 1) * cell_px * target_size / map_h) - 1
+                x0 = col * cell_px
+                y0 = row * cell_px
+                # Skip blocks that start outside the image
+                if x0 >= w or y0 >= h:
+                    continue
+                x1 = min((col + 1) * cell_px - 1, w - 1)
+                y1 = min((row + 1) * cell_px - 1, h - 1)
                 # filled semi-transparent red
                 draw.rectangle([x0, y0, x1, y1], fill=(239, 68, 68, 140))
                 # solid red border
@@ -248,19 +255,48 @@ def verify_tamper(
     # =====================================================
     _tick(65)
 
-    scale   = 2 ** key.dtcwt_levels
+    # The dtcwt library's lowpass (LL) subband is at scale 2^(levels-1),
+    # NOT 2^levels.  Compute scale from actual dimensions to be safe.
+    padded_size = key.orig_H + key.pad_h          # = M (square)
+    scale   = padded_size // LL_shape[0]           # actual spatial scale
     cell_px = key.block_size * scale
 
-    tmap_pil = _build_tamper_map(tamper_grid, cell_px, key.M, key.M)
-    tmap_bgr = cv2.cvtColor(np.array(tmap_pil), cv2.COLOR_RGB2BGR)
-    _save_png(tamper_map_path, tmap_bgr)
-    print(f"           Tamper map  → {tamper_map_path}")
+    # ── DEBUG: print dimensions and tampered block positions ──
+    print(f"[DEBUG] key.orig_H={key.orig_H}, key.orig_W={key.orig_W}")
+    print(f"[DEBUG] key.M={key.M}, pad_h={key.pad_h}, pad_w={key.pad_w}")
+    print(f"[DEBUG] LL_shape={LL_shape}, n_rows={n_rows}, n_cols={n_cols}")
+    print(f"[DEBUG] scale={scale}, cell_px={cell_px}")
+    print(f"[DEBUG] n_blocks={n_blocks}, n_used={n_used}")
 
     received_bgr = cv2.imread(received_path, cv2.IMREAD_COLOR)
     if received_bgr is None:
         raise ValueError(f"Could not open received image: {received_path}")
+    recv_h, recv_w = received_bgr.shape[:2]
+    print(f"[DEBUG] received_bgr.shape=({recv_h}, {recv_w})")
 
-    overlay_bgr = _build_overlay(received_bgr, tamper_grid, cell_px, key.M)
+    tampered_positions = []
+    for row in range(n_rows):
+        for col in range(n_cols):
+            if tamper_grid[row, col]:
+                px_x = col * cell_px
+                px_y = row * cell_px
+                tampered_positions.append((row, col, px_y, px_x))
+    print(f"[DEBUG] Tampered blocks ({len(tampered_positions)} total):")
+    for r, c, py, px in tampered_positions[:20]:
+        delta = sv_deltas_grid[r, c]
+        print(f"[DEBUG]   grid({r},{c}) → pixel({px},{py})  delta={delta:.4f}")
+    if len(tampered_positions) > 20:
+        print(f"[DEBUG]   ... and {len(tampered_positions) - 20} more")
+    # ── END DEBUG ──
+
+    # Use original image dimensions — block coordinates in the padded M×M
+    # grid map 1:1 to the original image since padding is bottom/right
+    tmap_pil = _build_tamper_map(tamper_grid, cell_px, key.orig_W, key.orig_H)
+    tmap_bgr = cv2.cvtColor(np.array(tmap_pil), cv2.COLOR_RGB2BGR)
+    _save_png(tamper_map_path, tmap_bgr)
+    print(f"           Tamper map  → {tamper_map_path}")
+
+    overlay_bgr = _build_overlay(received_bgr, tamper_grid, cell_px)
     _save_png(overlay_path, overlay_bgr)
     print(f"           Overlay     → {overlay_path}")
 
