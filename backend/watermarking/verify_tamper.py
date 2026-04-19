@@ -261,44 +261,18 @@ def verify_tamper(
     scale   = padded_size // LL_shape[0]           # actual spatial scale
     cell_px = key.block_size * scale
 
-    # ── DEBUG: print dimensions and tampered block positions ──
-    print(f"[DEBUG] key.orig_H={key.orig_H}, key.orig_W={key.orig_W}")
-    print(f"[DEBUG] key.M={key.M}, pad_h={key.pad_h}, pad_w={key.pad_w}")
-    print(f"[DEBUG] LL_shape={LL_shape}, n_rows={n_rows}, n_cols={n_cols}")
-    print(f"[DEBUG] scale={scale}, cell_px={cell_px}")
-    print(f"[DEBUG] n_blocks={n_blocks}, n_used={n_used}")
-
     received_bgr = cv2.imread(received_path, cv2.IMREAD_COLOR)
     if received_bgr is None:
         raise ValueError(f"Could not open received image: {received_path}")
-    recv_h, recv_w = received_bgr.shape[:2]
-    print(f"[DEBUG] received_bgr.shape=({recv_h}, {recv_w})")
-
-    tampered_positions = []
-    for row in range(n_rows):
-        for col in range(n_cols):
-            if tamper_grid[row, col]:
-                px_x = col * cell_px
-                px_y = row * cell_px
-                tampered_positions.append((row, col, px_y, px_x))
-    print(f"[DEBUG] Tampered blocks ({len(tampered_positions)} total):")
-    for r, c, py, px in tampered_positions[:20]:
-        delta = sv_deltas_grid[r, c]
-        print(f"[DEBUG]   grid({r},{c}) → pixel({px},{py})  delta={delta:.4f}")
-    if len(tampered_positions) > 20:
-        print(f"[DEBUG]   ... and {len(tampered_positions) - 20} more")
-    # ── END DEBUG ──
 
     # Use original image dimensions — block coordinates in the padded M×M
     # grid map 1:1 to the original image since padding is bottom/right
     tmap_pil = _build_tamper_map(tamper_grid, cell_px, key.orig_W, key.orig_H)
     tmap_bgr = cv2.cvtColor(np.array(tmap_pil), cv2.COLOR_RGB2BGR)
     _save_png(tamper_map_path, tmap_bgr)
-    print(f"           Tamper map  → {tamper_map_path}")
 
     overlay_bgr = _build_overlay(received_bgr, tamper_grid, cell_px)
     _save_png(overlay_path, overlay_bgr)
-    print(f"           Overlay     → {overlay_path}")
 
     _tick(90)
 
