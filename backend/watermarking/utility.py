@@ -7,6 +7,7 @@ from .models import WatermarkExtraction
 from rest_framework.response import Response
 from rest_framework import status
 from .embed_key import EmbedKey
+from typing import Optional
 
 # def reconstruct_full_image(cropped, key):
 #     # return cropped
@@ -112,28 +113,52 @@ def serve_image(request, extraction_id: int, path_fn):
 
 
 def load_key(npz_path: str) -> EmbedKey:
-    """Reconstruct EmbedKey from the .npz file saved during embedding."""
-    data = np.load(npz_path, allow_pickle=True)
+    """
+    Load an EmbedKey from a .npz file written by embed_watermark().
+    Handles both new keys (with Sw_full) and legacy keys (without).
+    """
+    data = np.load(npz_path, allow_pickle=False)
+
+    def _opt_arr(name: str) -> Optional[np.ndarray]:
+        """Return array or None if key missing or array is empty."""
+        if name not in data:
+            return None
+        arr = data[name]
+        return arr if arr.size > 0 else None
+
+    # FIX BUG 4: load Sw_full; fall back gracefully for legacy keys that
+    # pre-date this fix (Sw_full will be reconstructed as zeros — extraction
+    # will still be poor, but won't crash).
+    if "Sw_full" in data:
+        Sw_full = data["Sw_full"].astype(np.float64)
+    else:
+        # Legacy key: best-effort — use zeros of inferred size
+        Uw_tmp = data["Uw"]
+        Sw_full = np.zeros(min(Uw_tmp.shape), dtype=np.float64)
+
+    # FIX BUG 2: force float64 regardless of how the array was saved
+    HSw_list = data["HSw_list"].astype(np.float64)
 
     return EmbedKey(
-        alpha_star        = float(data["alpha_star"]),
-        HSw_new_dominant  = data["HSw_new_dominant"],
-        tamper_threshold  = float(data["tamper_threshold"]),
-        Uw                = data["Uw"],
-        Vtw               = data["Vtw"],
-        watermark_shape   = tuple(data["watermark_shape"].tolist()),
-        henon_a           = float(data["henon_a"]),
-        henon_b           = float(data["henon_b"]),
-        M                 = int(data["M"]),
-        block_size        = int(data["block_size"]),
-        dtcwt_levels      = int(data["dtcwt_levels"]),
-        HSw_list          = tuple(data["HSw_list"].tolist()),
-        orig_H            = int(data["orig_H"]),
-        orig_W            = int(data["orig_W"]),
-        pad_h             = int(data["pad_h"]),
-        pad_w             = int(data["pad_w"]),
-        bottom_pad        = data["bottom_pad"],
-        right_pad         = data["right_pad"],
-        corner_pad        = data["corner_pad"],
-        Sw_full           = data["Sw_full"]
+        alpha_star       = float(data["alpha_star"]),
+            block_size       = int(data["block_size"]),
+            dtcwt_levels     = int(data["dtcwt_levels"]),
+            henon_a          = float(data["henon_a"]),
+            henon_b          = float(data["henon_b"]),
+            M                = int(data["M"]),
+            Uw               = data["Uw"].astype(np.float64),
+            Sw_full          = Sw_full,
+            Vtw              = data["Vtw"].astype(np.float64),
+            watermark_shape  = tuple(data["watermark_shape"].tolist()),
+            HSw_list         = HSw_list,
+            HSw_new_dominant = data["HSw_new_dominant"].astype(np.float64),
+            tamper_threshold = float(data["tamper_threshold"]),
+            orig_H           = int(data["orig_H"]),
+            orig_W           = int(data["orig_W"]),
+            pad_h            = int(data["pad_h"]),
+            pad_w            = int(data["pad_w"]),
+            bottom_pad       = _opt_arr("bottom_pad"),
+            right_pad        = _opt_arr("right_pad"),
+            corner_pad       = _opt_arr("corner_pad"),
+            watermark_shape_raw = tuple(data["watermark_shape_raw"].tolist()) if "watermark_shape_raw" in data else tuple(data["watermark_shape"].tolist()),
     )

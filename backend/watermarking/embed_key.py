@@ -31,6 +31,7 @@ class EmbedKey:
     Sw_full:          np.ndarray          # FIX BUG 4: full SV vector of W_enc
     Vtw:              np.ndarray          # right singular vectors of W_enc
     watermark_shape:  tuple
+    watermark_shape_raw : tuple
 
     # ── Host image data ─────────────────────────────────────────────────────
     HSw_list:         np.ndarray          # (n_blocks, sv_len) float64  FIX BUG 2
@@ -49,6 +50,7 @@ class EmbedKey:
     bottom_pad:       Optional[np.ndarray] = field(default=None)
     right_pad:        Optional[np.ndarray] = field(default=None)
     corner_pad:       Optional[np.ndarray] = field(default=None)
+    
 
     # ── Convenience ─────────────────────────────────────────────────────────
     @classmethod
@@ -100,4 +102,5 @@ class EmbedKey:
             bottom_pad       = _opt_arr("bottom_pad"),
             right_pad        = _opt_arr("right_pad"),
             corner_pad       = _opt_arr("corner_pad"),
+            watermark_shape_raw = tuple(data["watermark_shape_raw"].tolist()) if "watermark_shape_raw" in data else tuple(data["watermark_shape"].tolist()),
         )
