@@ -241,10 +241,31 @@ def embed_watermark(
         # =====================================================
         # 🔹 STEP 3: ENCRYPTION
         # =====================================================
+        # process.set_status(ImageProcess.Status.ENCRYPTING, 40)
+
+        # wm_side = max(int(np.sqrt(n_blocks)) * block_size, block_size)
+        # W_raw = _load_gray(watermark_path, wm_side)
+        # W_enc = henon_encrypt(W_raw, a=henon_a, b=henon_b)
+
+        # save_image(path_wm_raw(process), W_raw)
+        # save_image(path_wm_encrypted(process), W_enc)
+
+        # process.henon_a = henon_a
+        # process.henon_b = henon_b
+        # process.watermark_shape = list(W_enc.shape)
+        # process.save()
         process.set_status(ImageProcess.Status.ENCRYPTING, 40)
 
         wm_side = max(int(np.sqrt(n_blocks)) * block_size, block_size)
-        W_raw = _load_gray(watermark_path, wm_side)
+
+        # ── FIX: capture true original dims BEFORE _load_gray resizes ──
+        _wm_orig = cv2.imread(watermark_path, cv2.IMREAD_GRAYSCALE)
+        if _wm_orig is None:
+            raise ValueError(f"Cannot read watermark: {watermark_path}")
+        wm_orig_H, wm_orig_W = _wm_orig.shape[:2]   # e.g. 300 × 168
+        del _wm_orig
+
+        W_raw = _load_gray(watermark_path, wm_side)  # resized to wm_side × wm_side
         W_enc = henon_encrypt(W_raw, a=henon_a, b=henon_b)
 
         save_image(path_wm_raw(process), W_raw)
@@ -384,6 +405,7 @@ def embed_watermark(
             bottom_pad=bottom_pad if bottom_pad is not None else np.array([]),
             right_pad=right_pad if right_pad is not None else np.array([]),
             corner_pad=corner_pad if corner_pad is not None else np.array([]),
+            watermark_shape_raw=np.array([wm_orig_H, wm_orig_W]),
         )
 
         # =====================================================

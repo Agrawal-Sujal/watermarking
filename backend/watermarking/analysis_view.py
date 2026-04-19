@@ -392,6 +392,7 @@ def run_single_attack(request):
             "description": atk_desc,
             "pixels_changed": px_changed,
             "percent_changed": px_pct,
+            "total_pixels":     px_total, 
             "psnr": _safe(psnr, 4),
             "nc": _safe(nc, 6),
             "attacked_image": attacked_b64,
