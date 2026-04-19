@@ -764,7 +764,7 @@ export default function VerifyProgress({ verificationId, onReset }) {
           max-width: 220px;
           box-shadow: 0 3px 10px rgba(11,38,46,0.07);
         }
-        .vimg { width: 100%; display: block; max-height: 160px; object-fit: cover; }
+        .vimg { width: 100%; display: block; max-height: 160px; object-fit: contain; }
         .vimg-label {
           display: block;
           padding: 5px 10px;
